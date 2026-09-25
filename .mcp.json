@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pixinsight": {
+      "command": "npx",
+      "args": ["-y", "pixinsight-connector@2.2.0"]
+    }
+  }
+}

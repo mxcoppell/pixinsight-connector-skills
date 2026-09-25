@@ -1,0 +1,15 @@
+{
+  "name": "pixinsight-connector-skills",
+  "owner": {
+    "name": "Min Xie",
+    "url": "https://github.com/mxcoppell"
+  },
+  "description": "Companion skills for the pixinsight-connector MCP server.",
+  "plugins": [
+    {
+      "name": "pixinsight-connector-skills",
+      "source": "./",
+      "description": "Environment preflight, dataset intake, a basic all-linear LRGB flow and troubleshooting for pixinsight-connector. Registers the connector as the pixinsight MCP server."
+    }
+  ]
+}

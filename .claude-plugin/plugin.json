@@ -1,0 +1,13 @@
+{
+  "name": "pixinsight-connector-skills",
+  "description": "Companion skills for the pixinsight-connector MCP server: environment preflight, dataset intake, a basic all-linear LRGB flow and troubleshooting. Registers the connector as the pixinsight MCP server.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Min Xie",
+    "url": "https://github.com/mxcoppell"
+  },
+  "homepage": "https://github.com/mxcoppell/pixinsight-connector-skills",
+  "repository": "https://github.com/mxcoppell/pixinsight-connector-skills",
+  "license": "MIT",
+  "keywords": ["pixinsight", "astrophotography", "mcp", "agent-skills"]
+}

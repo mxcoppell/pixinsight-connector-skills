@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+# a session run from the checkout writes here
+/agentic/
+/output/
+# local-only leak denylist read by scripts/check.mjs; never committed
+.denylist
