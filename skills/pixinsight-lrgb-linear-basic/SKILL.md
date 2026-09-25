@@ -23,11 +23,13 @@ It is a basic flow on purpose: standard PixInsight tools with neutral settings, 
 
 - Tool names are bare here; your host may prefix them (e.g. `mcp__pixinsight__run_bxt`). Call one PixInsight tool at a time and read every result. A result flagged `PIXINSIGHT REPORTED AN ERROR`, `FAILED`, `REFUSED`, `BLOCKED`, `View not found` or `STOPPED BY USER` needs a decision, not a retry. After `STOPPED BY USER` stop and tell the user; call `resume_bridge` only when they say so. `pixinsight-connector-troubleshooting` covers known tool pitfalls.
 - **PJSR helpers come from a file.** Every function named below is in `reference/pjsr-helpers.js` next to this file. Call `run_pjsr` with `include: ["<this skill's folder>/reference/pjsr-helpers.js"]` (absolute path) and put only the calls in `code`. `code` is a script: no top-level `return`; its last expression is the result.
+- **Never retype a number from one tool result into the next call's code.** When a value measured in PixInsight feeds a PixInsight operation, measure and apply it in the same `run_pjsr` (the helpers do this, e.g. `levelSky`). A copied offset is how a sign or a digit gets lost.
 - Masters are read-only; never write into their folder. Stage files go to `<workspace>/agentic/work/`, deliverables to `<workspace>/output/` (`export_image` takes a path relative to `output/`, or an absolute path under `output/` or `agentic/`).
 - Keep a running call log as you go, one row per PixInsight call (sequence, tool, exact parameters, views in and out, one-line outcome). The report's appendix is this log, not a reconstruction.
 
 ## Phase 0 - Inputs
 
+0. Call `list_open_images` and record the ids that are already open. They are not this run's views: never close, rename or modify them.
 1. Read `<workspace>/agentic/preflight.json`. It must exist, be less than 30 days old, match the connected connector version, and list `pixinsight-lrgb-linear-basic` as `ready`. Otherwise run `pixinsight-preflight` first.
 2. Read `<workspace>/agentic/work/target-info.md` (schema `pixinsight-target-info/1`). It must have `master.L`, `master.R`, `master.G`, `master.B`, `qe_curve`, `filter.L`, `filter.R`, `filter.G`, `filter.B`, `position_ra_deg`, `position_dec_deg`, `pixel_scale_arcsec`, and `mars_coverage` = `covered`. Otherwise run `pixinsight-target-intake` first. Use these values exactly; never take them from anywhere else.
 3. This flow's own rows, under `## pixinsight-lrgb-linear-basic` in the same file: `stf_target` (default 0.25), `nxt_denoise` (default 0.5). Ask the user once if they want other values; record the answer or `default`.
@@ -66,8 +68,8 @@ It is a basic flow on purpose: standard PixInsight tools with neutral settings, 
 ## Phase 5 - Sky leveling
 
 1. `run_pjsr`: `var t = findSkyTiles("N", {}); JSON.stringify({ t: t, med: skyMedians("N", t.tiles) })`. Check the tiles spread over the frame (`nTiles`, positions); if fewer than four were found, report it.
-2. Offsets that bring the sky medians of R and B to G: `[med[1] - med[0], 0, med[1] - med[2]]`. `run_pjsr` `addOffsets("N", [dR, 0, dB])`.
-3. **Gate:** `skyMedians("N", <same tiles>)` again: R and B within 0.5% of G, G unchanged.
+2. Level in one call: `run_pjsr` `JSON.stringify(levelSky("N", <the tiles from step 1>))`. It measures the sky medians, adds the offsets that bring R and B to G (`[G - R, 0, G - B]`) and measures again, so the offsets never pass through you.
+3. **Gate**, on that result: `rgPct` and `bgPct` (R and B against G) within 0.5%, `gShiftPct` 0 (G unchanged).
 
 ## Phase 6 - STF, deliverables, checks
 
@@ -87,7 +89,7 @@ Write `<workspace>/output/<Target>_LRGB_basic_report.md` with two parts:
 - **Narrative:** every input and its source (from target-info.md), every parameter used, every gate with its measured value and threshold, every stage file path, and the limits below.
 - **Call-log appendix:** the running log, every PixInsight call in order, retries included. Do not summarize it.
 
-Leave the working images open unless the user asks to close them.
+**Leave only the final linear image open.** When the report is written, rename `N` to `<Target>_LRGB_basic_linear` (a view id allows only letters, digits and underscores: write `<Target>` with every other character, such as `-`, replaced by `_`) and close every other view this run created (`forceClose`, never save: `L`, `R`, `G`, `B` hold processed data under the masters' file paths, and saving them would overwrite the masters). Views that were already open before Phase 0 (step 0) are not this run's: never close, rename or modify them.
 
 ## Known limits
 

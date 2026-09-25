@@ -127,6 +127,17 @@ function addOffsets(id, off) {
   P.executeOn(ImageWindow.windowById(id).mainView); processEvents();
 }
 
+// Sky leveling in one call, in place: measure the sky-tile medians of `id`, add offsets that bring R and
+// B to G, and measure again. The offsets never leave PixInsight.
+function levelSky(id, tiles, size) {
+  var before = skyMedians(id, tiles, size), off = [before[1] - before[0], 0, before[1] - before[2]];
+  addOffsets(id, off);
+  var after = skyMedians(id, tiles, size), g = after[1];
+  return { before: before, offsets: off, after: after,
+           rgPct: 100 * Math.abs(after[0] - g) / g, bgPct: 100 * Math.abs(after[2] - g) / g,
+           gShiftPct: 100 * Math.abs(g - before[1]) / before[1] };
+}
+
 // Pixel offset between two plate-solved views: the image points of `refId` (centre and four points
 // at 40% of the half-size) mapped to the sky and back into `id`. Returns the largest offset in px.
 function solutionOffset(refId, id) {
