@@ -1,10 +1,10 @@
 {
   "name": "pixinsight-connector-skills",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "mcpServers": {
     "pixinsight": {
       "command": "npx",
-      "args": ["-y", "pixinsight-connector@2.2.1"]
+      "args": ["-y", "pixinsight-connector@2.2.2"]
     }
   }
 }

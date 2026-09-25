@@ -21,11 +21,11 @@ Asks PixInsight itself what is installed, then says what that means for the proc
 
 The `pixinsight` MCP tools (the host may prefix them, e.g. `mcp__pixinsight__inspect_environment`) must be available. If there are no such tools, stop and tell the user how to get them, then stop:
 
-- This skill pack's plugin registers the server itself. If the user installed only the skills, they register the server by hand: `npm install -g pixinsight-connector@2.2.1`, then the command `pixinsight-connector` as the MCP server `pixinsight` in their harness. Each harness's config shape: <https://github.com/mxcoppell/pixinsight-connector/blob/main/docs/setup.md>.
+- This skill pack's plugin registers the server itself. If the user installed only the skills, they register the server by hand: `npm install -g pixinsight-connector@2.2.2`, then the command `pixinsight-connector` as the MCP server `pixinsight` in their harness. Each harness's config shape: <https://github.com/mxcoppell/pixinsight-connector/blob/main/docs/setup.md>.
 - `pixinsight-connector doctor` diagnoses a server that is registered but does not start.
 - Register one `pixinsight` server, not two. Two connectors driving one PixInsight compete for its single script slot.
 
-If the tools exist but `inspect_environment` does not, the connector is older than 2.2.0: tell the user to upgrade (`npm install -g pixinsight-connector@2.2.1`, or update this plugin) and stop.
+If the tools exist but `inspect_environment` does not, the connector is older than 2.2.0: tell the user to upgrade (`npm install -g pixinsight-connector@2.2.2`, or update this plugin) and stop.
 
 ## 2. Workspace
 

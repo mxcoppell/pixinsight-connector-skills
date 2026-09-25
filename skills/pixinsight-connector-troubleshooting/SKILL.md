@@ -25,7 +25,7 @@ metadata:
 | Symptom | Do this |
 |---|---|
 | No `pixinsight` tools at all | The server is not registered or did not start. Run `pixinsight-connector doctor` in a terminal; it checks Node, the PixInsight install, the workspace and the watcher, and prints a hint per failed check |
-| Server fails to start when registered with `npx` | npx needs the npm registry until the package is cached. Install it (`npm install -g pixinsight-connector@2.2.1`) and register `pixinsight-connector` |
+| Server fails to start when registered with `npx` | npx needs the npm registry until the package is cached. Install it (`npm install -g pixinsight-connector@2.2.2`) and register `pixinsight-connector` |
 | Two `pixinsight` servers registered (by hand and by a plugin) | Keep one. Two connectors driving one PixInsight compete for its single script slot |
 | `No usable workspace: ...` | The workspace is the filesystem root, the home folder itself, missing or unwritable. `set_workspace` to the target folder, then retry |
 | `export_image` refuses a path | Absolute paths are allowed only under `<workspace>/output/` or `<workspace>/agentic/`. Use a relative path (lands in `output/`) |
