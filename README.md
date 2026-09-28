@@ -20,7 +20,7 @@ BlurXTerminator and NoiseXTerminator (commercial). `pixinsight-preflight` checks
 
 ## Install
 
-**Claude Code** (the plugin also registers the connector, pinned to 2.2.3, as the MCP server `pixinsight`):
+**Claude Code** (the plugin also registers the connector, pinned to 2.3.0, as the MCP server `pixinsight`):
 
 ```sh
 claude plugin marketplace add mxcoppell/pixinsight-connector-skills
@@ -42,7 +42,7 @@ gemini extensions install https://github.com/mxcoppell/pixinsight-connector-skil
 npx skills add mxcoppell/pixinsight-connector-skills
 ```
 
-and register the connector yourself: `npm install -g pixinsight-connector@2.2.3`, then the command
+and register the connector yourself: `npm install -g pixinsight-connector@2.3.0`, then the command
 `pixinsight-connector` as the MCP server `pixinsight`
 ([config shape per harness](https://github.com/mxcoppell/pixinsight-connector/blob/main/docs/setup.md)).
 
