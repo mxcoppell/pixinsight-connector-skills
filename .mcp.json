@@ -2,7 +2,7 @@
   "mcpServers": {
     "pixinsight": {
       "command": "npx",
-      "args": ["-y", "pixinsight-connector@2.4.1"]
+      "args": ["-y", "pixinsight-connector@2.5.0"]
     }
   }
 }

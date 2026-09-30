@@ -37,14 +37,18 @@ Every processing flow needs the same facts about a dataset before it touches a p
 | `position_ra_deg`, `position_dec_deg` | RA/DEC keywords if the scan shows them | Offer the catalogue position of the named target, stated for the user to confirm |
 | `pixel_scale_arcsec` | 206.265 × `XPIXSZ` × `XBINNING` / `FOCALLEN` (µm, mm) | Ask for focal length and pixel size, or the scale, and whether the stacker resampled (a half-resolution integration doubles it) |
 | `spcc_white_reference` | — | PixInsight's SPCC default (record `default`) |
-| `mars_coverage` | Once the position is known: `inspect_environment` with `sections: ["mars"]`, `ra_deg`, `dec_deg`. `covered: true` → `covered`, with each file's `referenceImages` | `covered: false` → record `not covered` and tell the user MGC cannot run for this target |
+| `mars_coverage` | Once the position is known: `inspect_environment` with `sections: ["mars"]`, `ra_deg`, `dec_deg`. `covered: true` → `covered`, with each file's `referenceImages` | `covered: false` → record `not covered` and tell the user MGC cannot run for this target. MGC stays the first choice; offer the fallback in `gradient_fallback` once (section 3) |
+| `gradient_fallback` | Only when `mars_coverage` is `not covered`: AutomaticBackgroundExtractor (`run_abe`) on each master in MGC's place, with the flow's before/after gate, named as ABE in the report. ABE models the sky from the image itself, where MGC uses a reference, so in a field the target fills it can remove real signal | The user's answer: `abe` (accepted) or `none` (declined: the flow does not start). Never assumed |
 
 ## 3. Ask once
 
 If any row is still open, stop and ask the user in **one** consolidated message:
 
 - what came from the headers, so they can correct it,
-- each open row, with the default to offer if the table above has one.
+- each open row, with the default to offer if the table above has one,
+- when `mars_coverage` is `not covered`, the `gradient_fallback` offer, once.
+
+Do not ask which denoiser to use: the flows denoise with NoiseXTerminator, and no alternative is offered.
 
 Wait for the answer. In a run with nobody to answer, stop and report what is missing instead of continuing.
 
@@ -67,9 +71,10 @@ schema: pixinsight-target-info/1
 | pixel_scale_arcsec | <arcsec/px> | computed from FOCALLEN, XPIXSZ, XBINNING |
 | spcc_white_reference | default | default |
 | mars_coverage | covered (<file>: <n> reference images) | inspect_environment <date> |
+| gradient_fallback | abe | user <date> |
 ```
 
-One row per key, one `master.*` and `filter.*` row per channel. Source is one of: `header <KEY> of <file>`, `computed from ...`, `find_filters`, `user <date>`, `default accepted by user <date>`, `skipped by user <date>`, `inspect_environment <date>`.
+One row per key, one `master.*` and `filter.*` row per channel. `gradient_fallback` appears only when `mars_coverage` is `not covered`. Source is one of: `header <KEY> of <file>`, `computed from ...`, `find_filters`, `user <date>`, `default accepted by user <date>`, `skipped by user <date>`, `inspect_environment <date>`.
 
 A processing flow may append its own rows (look preferences, a reference image) under a `## <flow name>` heading in the same file. Those rows belong to that flow; this skill leaves them alone when it updates the file.
 

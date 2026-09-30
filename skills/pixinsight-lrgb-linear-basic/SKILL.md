@@ -3,9 +3,10 @@ name: pixinsight-lrgb-linear-basic
 description: >-
   A basic starter flow for integrated mono LRGB masters (L, R, G, B in XISF or FITS) through the
   `pixinsight` MCP server (pixinsight-connector), linear all the way: border crop, BlurXTerminator
-  correction, plate solving, SPFC, MultiscaleGradientCorrection, RGB combine, SPCC,
-  BlurXTerminator sharpening, NoiseXTerminator, a linear L merge, sky leveling, and a 32-bit
-  linear final with the standard auto-STF embedded, stars included. No colour adjustment, no star
+  correction, plate solving with a solution-quality gate, SPFC, MultiscaleGradientCorrection (ABE
+  when the user accepts it for a target MARS does not cover), RGB combine, SPCC, BlurXTerminator
+  sharpening, NoiseXTerminator, a linear L merge, sky leveling, and a 32-bit linear final with the
+  standard auto-STF embedded, stars included. No colour adjustment, no star
   separation. Use for "process this LRGB data", "basic LRGB", "linear LRGB with PixInsight". Needs
   pixinsight-preflight and pixinsight-target-intake done first.
 license: MIT
@@ -30,24 +31,25 @@ It is a basic flow on purpose: standard PixInsight tools with neutral settings, 
 ## Phase 0 - Inputs
 
 0. Call `list_open_images` and record the ids that are already open. They are not this run's views: never close, rename or modify them.
-1. Read `<workspace>/agentic/preflight.json`. It must exist, be less than 30 days old, match the connected connector version, and list `pixinsight-lrgb-linear-basic` as `ready`. Otherwise run `pixinsight-preflight` first.
-2. Read `<workspace>/agentic/work/target-info.md` (schema `pixinsight-target-info/1`). It must have `master.L`, `master.R`, `master.G`, `master.B`, `qe_curve`, `filter.L`, `filter.R`, `filter.G`, `filter.B`, `position_ra_deg`, `position_dec_deg`, `pixel_scale_arcsec`, and `mars_coverage` = `covered`. Otherwise run `pixinsight-target-intake` first. Use these values exactly; never take them from anywhere else.
-3. This flow's own rows, under `## pixinsight-lrgb-linear-basic` in the same file: `stf_target` (default 0.25), `nxt_denoise` (default 0.5). Ask the user once if they want other values; record the answer or `default`.
+1. Read `<workspace>/agentic/preflight.json`. It must exist, be less than 30 days old, match the connected connector version, and list `pixinsight-lrgb-linear-basic` as `ready`. Otherwise run `pixinsight-preflight` first. Note `pixinsightBuild`, `imageSolverVersion` and `verdicts.astrometricSolutionVerifier`: Phase 1 and the report use them.
+2. Read `<workspace>/agentic/work/target-info.md` (schema `pixinsight-target-info/1`). It must have `master.L`, `master.R`, `master.G`, `master.B`, `qe_curve`, `filter.L`, `filter.R`, `filter.G`, `filter.B`, `position_ra_deg`, `position_dec_deg`, `pixel_scale_arcsec`, and `mars_coverage` = `covered`, or `mars_coverage` = `not covered` with `gradient_fallback` = `abe`. Otherwise run `pixinsight-target-intake` first. Use these values exactly; never take them from anywhere else.
+3. This flow's own rows, under `## pixinsight-lrgb-linear-basic` in the same file: `stf_target` (default 0.25), `nxt_denoise` (default 0.5). Ask the user once if they want other values; record the answer or `default`. The denoiser is NoiseXTerminator: it is not offered as a choice.
 
 ## Phase 1 - Masters: crop, correct, solve, calibrate flux, remove gradients
 
-1. For each channel: `open_image` with the exact `master.<channel>` path, `rename_view` to `L`, `R`, `G` or `B`.
+1. For each channel: `open_image` with the exact `master.<channel>` path, `rename_view` (from the id `open_image` returned) to `L`, `R`, `G` or `B`.
 2. **Crop registration borders first.** `run_pjsr` with `JSON.stringify(scanBorders("L", 60))`, and the same for R, G, B. Take the largest value per side over the four, add 10 px, and `crop_image` all four views by the same amounts.
 3. Per channel: `run_bxt` with `correct_only: true`.
-4. Per channel: `run_plate_solve` with `ra_deg`, `dec_deg` and `pixel_scale` from target-info. A console line `No database files have been selected` or `the Gaia process is not working, probably because of a wrong database configuration` next to "Plate solve OK ... Reference catalog: Gaia DR3/SP" is harmless when preflight found Gaia DR3/SP valid; confirm with `run_pjsr` `ImageWindow.windowById("L").astrometricSolutionSummary()` that a solution exists.
-5. **Gate, alignment:** `run_pjsr` `[solutionOffset("L","R"), solutionOffset("L","G"), solutionOffset("L","B")]`. Every value below 1 px. Independent solutions of well-registered masters differ by a few hundredths of a percent in scale, which alone moves points this far from the centre by about half a pixel; a real registration error shows up as several pixels. Otherwise `align_to_reference` the offending channel to `L`, solve it again, and re-check. Still failing: stop and ask.
-6. Per channel: `run_spfc` with `filter` (L/R/G/B), then `filter_name` (or `wavelength_nm`/`bandwidth_nm` for a `flat` row) and `qe_name` from target-info.
-7. Per channel: `get_image_stats`, `run_mgc` with `filter`, `get_image_stats` again. **Gate:** median changed by less than 1%, MAD not larger. If MGC changed little, say so: well-stacked masters are often already flat.
-8. `export_image` each channel to `<workspace>/agentic/work/<Target>_stage01_<ch>.xisf`.
+4. Per channel: `run_plate_solve` with `ra_deg`, `dec_deg` and `pixel_scale` from target-info, and `recursive_splines` true when `imageSolverVersion` is 6.5.0 or later (omit it otherwise). A console line `No database files have been selected` or `the Gaia process is not working, probably because of a wrong database configuration` next to "Plate solve OK ... Reference catalog: Gaia DR3/SP" is harmless when preflight found Gaia DR3/SP valid; confirm with `run_pjsr` `ImageWindow.windowById("L").astrometricSolutionSummary()` that a solution exists.
+5. **Gate, solution quality:** per channel `verify_astrometry`, which measures the solution against Gaia DR3. Read the median deviation in pixels: PASS at 0.15 or less, WARN above 0.15 up to 0.30 (report it and continue), FAIL above 0.30. The vendor measured typical PixInsight solutions on moderate to low SNR images at 0.03 to 0.12 px median. On FAIL, `run_plate_solve` that channel again with `recursive_splines` true if it was not used, and verify again; still FAIL, or splines were already on: stop and ask. If `verdicts.astrometricSolutionVerifier` is not PASS, skip this gate and say so in the report.
+6. **Gate, alignment:** `run_pjsr` `[solutionOffset("L","R"), solutionOffset("L","G"), solutionOffset("L","B")]`. Every value below 1 px. Independent solutions of well-registered masters differ by a few hundredths of a percent in scale, which alone moves points this far from the centre by about half a pixel; a real registration error shows up as several pixels. Otherwise `align_to_reference` the offending channel to `L`, solve it again, and re-check. Still failing: stop and ask.
+7. Per channel: `run_spfc` with `filter` (L/R/G/B), then `filter_name` (or `wavelength_nm`/`bandwidth_nm` for a `flat` row) and `qe_name` from target-info.
+8. Per channel: `get_image_stats`, `run_mgc` with `filter`, `get_image_stats` again. **Gate:** median changed by less than 1%, MAD not larger. If MGC changed little, say so: well-stacked masters are often already flat. With `gradient_fallback` = `abe`, `run_abe` replaces `run_mgc` on each channel, under the same gate; look at each result with `save_preview` (an STF from `stf_from` or `stf_m`) before going on, because ABE can remove real signal where the target fills the frame, and name ABE as the gradient method in the report.
+9. `export_image` each channel to `<workspace>/agentic/work/<Target>_stage01_<ch>.xisf`.
 
 ## Phase 2 - RGB
 
-1. `combine_channels` R, G, B → `RGB`. The combined image carries no solution: `run_plate_solve` it (same seed).
+1. `combine_channels` R, G, B → `RGB`. The combined image carries no solution: `run_plate_solve` it (same seed, same `recursive_splines` setting).
 2. `run_spcc` on `RGB` with `red_filter_name`, `green_filter_name`, `blue_filter_name` and `qe_name` from target-info (and `white_reference` only if target-info names one). SPCC includes background neutralization; do not add another.
 3. `run_bxt` on `RGB` with the tool's default sharpening (`sharpen_stellar` 0.5, `sharpen_nonstellar` 0.5, `adjust_star_halos` 0).
 4. `run_nxt` on `RGB` with `denoise` = `nxt_denoise`.
@@ -86,7 +88,7 @@ It is a basic flow on purpose: standard PixInsight tools with neutral settings, 
 
 Write `<workspace>/output/<Target>_LRGB_basic_report.md` with two parts:
 
-- **Narrative:** every input and its source (from target-info.md), every parameter used, every gate with its measured value and threshold, every stage file path, and the limits below.
+- **Narrative:** every input and its source (from target-info.md), every parameter used, every gate with its measured value and threshold (each channel's `verify_astrometry` median included), the PixInsight build and ImageSolver version from preflight.json (build 1705 changed the PSF "Auto" default, so SPFC, MGC and SPCC results differ between builds), the gradient method (MGC, or ABE under the fallback), every stage file path, and the limits below.
 - **Call-log appendix:** the running log, every PixInsight call in order, retries included. Do not summarize it.
 
 **Leave only the final linear image open.** When the report is written, rename `N` to `<Target>_LRGB_basic_linear` (a view id allows only letters, digits and underscores: write `<Target>` with every other character, such as `-`, replaced by `_`) and close every other view this run created (`forceClose`, never save: `L`, `R`, `G`, `B` hold processed data under the masters' file paths, and saving them would overwrite the masters). Views that were already open before Phase 0 (step 0) are not this run's: never close, rename or modify them.
@@ -96,4 +98,4 @@ Write `<workspace>/output/<Target>_LRGB_basic_report.md` with two parts:
 - Colour is what SPCC gives: under a linked auto-STF on linear data it looks muted. This flow does not boost saturation.
 - Noise reduction is two NXT passes at one strength, stars included; small stars can soften at high `nxt_denoise`.
 - Stars are part of the image throughout; nothing shapes or reduces them. Bright star cores come out flat and white: L's saturated cores are scaled below 1 by `linear_fit`, and the merge takes brightness from L.
-- The flow has been run end to end on one real mono LRGB dataset (PixInsight 1.9.5, macOS). It is not validated on Windows or Linux, on masters that need `align_to_reference`, or on an RGB-only dataset.
+- The flow has been run end to end on one real mono LRGB dataset (PixInsight 1.9.5, macOS). It is not validated on Windows or Linux, on masters that need `align_to_reference`, or on an RGB-only dataset. The solution-quality gate, `recursive_splines` and the ABE fallback were added later and have not been run end to end on real data.

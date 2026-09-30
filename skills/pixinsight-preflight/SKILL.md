@@ -5,9 +5,10 @@ description: >-
   (pixinsight-connector), or when a processing skill says preflight is missing or stale. Checks
   that the connector is connected and which PixInsight it drives, which Gaia databases are
   installed and readable, whether the MARS database files for MultiscaleGradientCorrection are
-  readable, and which BlurXTerminator, NoiseXTerminator and StarXTerminator versions and AI model
-  versions are installed. Writes agentic/preflight.json, which processing skills read. Also use
-  for "check my PixInsight setup", "is Gaia installed", "which BXT model do I have".
+  readable, which BlurXTerminator, NoiseXTerminator and StarXTerminator versions and AI model
+  versions are installed, and the PixInsight core build, ImageSolver version and whether
+  AstrometricSolutionVerifier is present. Writes agentic/preflight.json, which processing skills
+  read. Also use for "check my PixInsight setup", "is Gaia installed", "which BXT model do I have".
 license: MIT
 metadata:
   author: mxcoppell
@@ -21,11 +22,11 @@ Asks PixInsight itself what is installed, then says what that means for the proc
 
 The `pixinsight` MCP tools (the host may prefix them, e.g. `mcp__pixinsight__inspect_environment`) must be available. If there are no such tools, stop and tell the user how to get them, then stop:
 
-- This skill pack's plugin registers the server itself. If the user installed only the skills, they register the server by hand: `npm install -g pixinsight-connector@2.4.1`, then the command `pixinsight-connector` as the MCP server `pixinsight` in their harness. Each harness's config shape: <https://github.com/mxcoppell/pixinsight-connector/blob/main/docs/setup.md>.
+- This skill pack's plugin registers the server itself. If the user installed only the skills, they register the server by hand: `npm install -g pixinsight-connector@2.5.0`, then the command `pixinsight-connector` as the MCP server `pixinsight` in their harness. Each harness's config shape: <https://github.com/mxcoppell/pixinsight-connector/blob/main/docs/setup.md>.
 - `pixinsight-connector doctor` diagnoses a server that is registered but does not start.
 - Register one `pixinsight` server, not two. Two connectors driving one PixInsight compete for its single script slot.
 
-If the tools exist but `inspect_environment` does not, the connector is older than 2.2.0: tell the user to upgrade (`npm install -g pixinsight-connector@2.4.1`, or update this plugin) and stop.
+If the tools exist but `inspect_environment` does not, the connector is older than 2.2.0: tell the user to upgrade (`npm install -g pixinsight-connector@2.5.0`, or update this plugin) and stop.
 
 ## 2. Workspace
 
@@ -33,7 +34,7 @@ Call `workspace_info`. If the user named a target folder, `set_workspace` to it 
 
 ## 3. Run the inspection
 
-Call `inspect_environment` with no arguments. It takes about 10 seconds (three short RC-Astro runs and one MGC run per MARS file) and returns JSON with four sections. PixInsight starts on the first call if it is not running.
+Call `inspect_environment` with no arguments. It takes about 10 seconds (three short RC-Astro runs and one MGC run per MARS file) and returns JSON with five sections: `gaia`, `mars`, `xterminators`, `system` and `processes` (the core version and build, and the processes and scripts the flows use, each with its version where it has one). PixInsight starts on the first call if it is not running. A result without a `processes` section means the connector is older than 2.5.0: tell the user to upgrade and stop.
 
 ## 4. Turn the result into verdicts
 
@@ -43,6 +44,9 @@ Report one table, PASS / WARN / FAIL per row, with the evidence from the JSON:
 |---|---|---|
 | Connector | `connectorVersion` is 2.2.0 or later | FAIL: older |
 | PixInsight | `pixinsightVersion` is 1.9.5 or later | WARN: older, untested |
+| PixInsight build | the core version and build number from `processes`, recorded, not judged | Report both. Build 1705 changed the default of the PSF "Auto" option, which changes the default results of LocalNormalization, SPFC, PhotometricColorCalibration and SPCC (and so MGC, which uses SPFC's scale factors): results from different builds are not comparable, so flows cite the build |
+| ImageSolver | version 6.5.0 or later (recursive surface splines, used by `run_plate_solve` with `recursive_splines`) | Informational: older (or absent) means the flows solve without that option; report the version. It needs core 1.9.5 |
+| AstrometricSolutionVerifier | the script is present (it needs core 1.9.5 or later) | WARN: absent. `verify_astrometry` cannot run, so a flow's solve-quality gate cannot be measured; the flow reports that and continues |
 | Gaia DR3/SP | the `DR3/SP` release has `valid: true`, `meanSpectra: true`, and `gaia.search.ok` with `sources > 0` | FAIL: SPFC, SPCC and `run_plate_solve` (which solves against local DR3/SP) cannot run |
 | Other Gaia releases | informational | A release with `valid: false` is not installed. Its `error` may read `No database files have been selected`, the same console line `run_plate_solve` can print next to a successful solve; it is harmless when DR3/SP is valid |
 | MARS files | `mars.results` non-empty and every file `readable` | FAIL: `none-configured` (MGC cannot run: install MARS files and add them in MultiscaleGradientCorrection's preferences), `missing` or `corrupt` (name the file) |
@@ -60,7 +64,7 @@ A processing skill states what it needs. The ones in this pack:
 | Flow | Needs |
 |---|---|
 | `pixinsight-target-intake` | connector, PixInsight; Gaia DR3/SP only if it will check MARS coverage |
-| `pixinsight-lrgb-linear-basic` | connector, PixInsight, Gaia DR3/SP, MARS readable (coverage at the target), BXT, NXT |
+| `pixinsight-lrgb-linear-basic` | connector, PixInsight, Gaia DR3/SP, BXT, NXT, and either MARS readable (coverage at the target) or the user's accepted ABE fallback (`pixinsight-target-intake`). AstrometricSolutionVerifier for the solve-quality gate (a WARN, not a block) |
 
 Say for each flow whether it can run. A FAIL in a row a flow needs means that flow cannot start; a WARN is reported and does not block.
 
@@ -74,13 +78,15 @@ With your own file tool (the connector has no text writer), write `<workspace>/a
   "checkedAt": "<ISO 8601 time>",
   "connectorVersion": "<from the result>",
   "pixinsightVersion": "<from the result>",
-  "verdicts": { "gaiaDr3sp": "PASS", "mars": "PASS", "blurXTerminator": "PASS", "noiseXTerminator": "PASS", "starXTerminator": "PASS", "memory": "PASS", "disk": "WARN" },
+  "pixinsightBuild": "<the core build number, from processes>",
+  "imageSolverVersion": "<from processes, or null>",
+  "verdicts": { "gaiaDr3sp": "PASS", "mars": "PASS", "blurXTerminator": "PASS", "noiseXTerminator": "PASS", "starXTerminator": "PASS", "astrometricSolutionVerifier": "PASS", "memory": "PASS", "disk": "WARN" },
   "flows": { "pixinsight-lrgb-linear-basic": "ready" },
   "inspection": { "...": "the inspect_environment JSON, unchanged" }
 }
 ```
 
-`flows` values are `ready` or `blocked: <reason>`. A processing skill treats the file as stale, and asks for preflight again, when it is older than 30 days, when `connectorVersion` differs from the connector now connected, or when the user says they installed or changed something.
+`verdicts.mars` records whether every configured MARS file is readable. `flows` values are `ready` or `blocked: <reason>`. A processing skill treats the file as stale, and asks for preflight again, when it is older than 30 days, when `connectorVersion` differs from the connector now connected, or when the user says they installed or changed something (a PixInsight update changes `pixinsightBuild`).
 
 ## 7. Tell the user
 
