@@ -62,7 +62,7 @@ for (const dir of fs.readdirSync(path.join(root, 'skills'))) {
   if (!/^license:\s*MIT$/m.test(fm)) problems.push(`${f}: license is not MIT`);
 }
 
-const published = walk('.').filter((f) => !f.startsWith('.git/') && !f.startsWith('node_modules/') && !f.startsWith('agentic/') && !f.startsWith('output/') && f !== '.denylist' && f !== 'scripts/check.mjs');
+const published = walk('.').filter((f) => !f.startsWith('.git/') && f !== '.git' && !f.startsWith('node_modules/') && !f.startsWith('agentic/') && !f.startsWith('output/') && f !== '.denylist' && f !== 'scripts/check.mjs');
 const LOCAL_PATH = /\/Volumes\/|\/Users\/[A-Za-z]|[A-Za-z]:\\Users\\/;
 let deny = [];
 if (fs.existsSync(path.join(root, '.denylist'))) {
