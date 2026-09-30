@@ -25,7 +25,7 @@ metadata:
 | Symptom | Do this |
 |---|---|
 | No `pixinsight` tools at all | The server is not registered or did not start. Run `pixinsight-connector doctor` in a terminal; it checks Node, the PixInsight install, the workspace and the watcher, and prints a hint per failed check |
-| Server fails to start when registered with `npx` | npx needs the npm registry until the package is cached. Install it (`npm install -g pixinsight-connector@2.4.0`) and register `pixinsight-connector` |
+| Server fails to start when registered with `npx` | npx needs the npm registry until the package is cached. Install it (`npm install -g pixinsight-connector@2.4.1`) and register `pixinsight-connector` |
 | Two `pixinsight` servers registered (by hand and by a plugin) | Keep one. Two connectors driving one PixInsight compete for its single script slot |
 | `No usable workspace: ...` | The workspace is the filesystem root, the home folder itself, missing or unwritable. `set_workspace` to the target folder, then retry |
 | `export_image` refuses a path | Absolute paths are allowed only under `<workspace>/output/` or `<workspace>/agentic/`. Use a relative path (lands in `output/`) |
@@ -61,6 +61,7 @@ If the user presses Pause/Abort in PixInsight, the call returns `STOPPED BY USER
 | A call ran long and says PixInsight may be showing a dialog | A modal dialog in PixInsight is waiting for a click | Ask the user to look at PixInsight and answer it; do not retry meanwhile |
 | Every call fails with `crashed mid-command ... retry` although PixInsight was restarted (connector before 2.3.0) | A stale "busy" heartbeat | 2.3.0 clears it by itself; on older versions move `<workspace>/agentic/bridge/<machine>/heartbeat` aside |
 | A starless image after `run_sxt` shows a faint rectangular grid, cells of about 470 px | StarXTerminator's tile overlap was too low: connectors before 2.4.0 defaulted to 0.10 | Run `run_sxt` with `overlap` 0.5 (the default from 2.4.0) and check the starless image again under a hard stretch |
+| `run_spcc` in narrowband mode gives an Hα/[O III] scale that looks wrong for a 5 nm filter | Connectors before 2.4.1 left the bands at PixInsight's 3 nm default; a solar-type white reference is also needed for star colour (the default "Average Spiral Galaxy" tints stars) | Pass `red_bandwidth_nm`, `green_bandwidth_nm`, `blue_bandwidth_nm` (and the `_wavelength_nm` centres) with the real filter widths and `white_reference` "G2V Star" |
 | `reproject_to_reference` says a view has no astrometric solution | Both the source and the reference need one | `run_plate_solve` on each, then retry |
 | Memory pressure | Each 32-bit colour image of a full-frame sensor is hundreds of MB, and snapshots add up | Export intermediates to XISF and close them |
 
