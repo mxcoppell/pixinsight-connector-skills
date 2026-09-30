@@ -6,9 +6,9 @@ are a starting point: check the machine, describe the dataset, and run one basic
 
 | Skill | What it does |
 |---|---|
-| `pixinsight-preflight` | Asks PixInsight what is installed: Gaia databases (and a test search), MARS files for MultiscaleGradientCorrection (and a test run), BlurXTerminator / NoiseXTerminator / StarXTerminator versions and AI model versions, memory and disk. Says which flows can run. Writes `agentic/preflight.json` |
+| `pixinsight-preflight` | Asks PixInsight what is installed: Gaia databases (and a test search), MARS files for MultiscaleGradientCorrection (and a test run), BlurXTerminator / NoiseXTerminator / StarXTerminator versions and AI model versions, the PixInsight core build, ImageSolver and AstrometricSolutionVerifier, memory and disk. Says which flows can run. Writes `agentic/preflight.json` |
 | `pixinsight-target-intake` | Maps masters to channels and resolves camera QE, filter curves, position and pixel scale from the headers; checks MARS coverage at the target; asks once for anything missing. Writes `agentic/work/target-info.md` |
-| `pixinsight-lrgb-linear-basic` | L, R, G, B masters to a 32-bit linear final with the standard auto-STF embedded, stars included: crop, BXT correction, plate solve, SPFC, MGC, SPCC, BXT, NXT, a linear L merge, sky leveling. No colour adjustment, no star separation |
+| `pixinsight-lrgb-linear-basic` | L, R, G, B masters to a 32-bit linear final with the standard auto-STF embedded, stars included: crop, BXT correction, plate solve with a solution-quality gate, SPFC, MGC (ABE when MARS does not cover the target and the user accepts it), SPCC, BXT, NXT, a linear L merge, sky leveling. No colour adjustment, no star separation |
 | `pixinsight-connector-troubleshooting` | Reading the connector's call log, Pause/Abort, known tool pitfalls, when to stop and ask |
 
 Skills follow the open [Agent Skills](https://agentskills.io) format, so one source serves many harnesses.
@@ -20,7 +20,7 @@ BlurXTerminator and NoiseXTerminator (commercial). `pixinsight-preflight` checks
 
 ## Install
 
-**Claude Code** (the plugin also registers the connector, pinned to 2.4.1, as the MCP server `pixinsight`):
+**Claude Code** (the plugin also registers the connector, pinned to 2.5.0, as the MCP server `pixinsight`):
 
 ```sh
 claude plugin marketplace add mxcoppell/pixinsight-connector-skills
@@ -42,7 +42,7 @@ gemini extensions install https://github.com/mxcoppell/pixinsight-connector-skil
 npx skills add mxcoppell/pixinsight-connector-skills
 ```
 
-and register the connector yourself: `npm install -g pixinsight-connector@2.4.1`, then the command
+and register the connector yourself: `npm install -g pixinsight-connector@2.5.0`, then the command
 `pixinsight-connector` as the MCP server `pixinsight`
 ([config shape per harness](https://github.com/mxcoppell/pixinsight-connector/blob/main/docs/setup.md)).
 
